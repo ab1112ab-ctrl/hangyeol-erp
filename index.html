@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<!-- 한결연마 휴대폰 ERP (앱스 스크립트 'Mobile.html' 사본, 2026-10-23)
+     요약(챙길 일·거래처 TOP5·세금 준비) / 입력(거래 입력·PC 인쇄 요청) / 미수 / 검색(초성 가능)
+     바꿀 수 있는 것: 입금 처리, 거래 입력(매출·미수), 계산서 발행 표시, PC 인쇄 요청 (2026-10-25, 앱스 스크립트 v6)
+     v7 (2026-10-28): 거래 옆 📧 거래명세서 메일 요청(+통장사본 등, PC가 보냄) · 🏢 거래처 탭(주소·이메일)
+     v8 (2026-10-28): 거래처 탭 📧 그냥 메일(제목·내용 + 서류, PC가 보냄)
+     v12 (2026-10-29): 거래 글자를 누르면 📝 작업 메모(숫돌·RPM·요령) — 목록·검색에 같이 보임
+     v19 (2026-11-02): '새로고침'이 데이터만 다시 불러와서 고친 화면이 안 받아지던 일 → 화면 전체를 새로 엶
+     v18 (2026-11-02): 확인 창을 화면 안 창으로 (휴대폰 브라우저가 팝업을 막아 '수정 + PC 인쇄'가 안 되던 일)
+     v16 (2026-11-02): 요약 'N월 매출'·그래프 달 누르면 달별 매출(거래처별, ◀▶ 다른 달) · 검색 탭 거래처·품목 추천 버튼 -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--line:#e2e5ea;--text:#1a1d23;--sub:#5a6272;--muted:#9aa0ad;
+  --sale:#0d9488;--saleT:#0f766e;--buy:#d97706;--acc:#2563eb;--red:#dc2626;--gray:#9aa0ad}
+@media (prefers-color-scheme:dark){:root{--bg:#131417;--card:#1d1f24;--line:#2c2f36;--text:#eceef2;--sub:#b3b8c3;--muted:#7d8391;--saleT:#2dd4bf}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:15px;padding:0 0 76px}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+header b{font-size:17px}header b span{color:var(--acc)}
+#reload{border:1px solid var(--line);background:none;color:var(--sub);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;text-decoration:none}
+main{padding:12px 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi .t{font-size:12px;color:var(--sub);font-weight:600}
+.u{font-size:10px;color:var(--muted);font-weight:500;margin-left:3px}
+.kpi .v{font-size:22px;font-weight:800;margin:4px 0 2px;letter-spacing:-.5px}
+.kpi .s{font-size:12px;color:var(--muted)}
+.bar{height:6px;background:var(--line);border-radius:4px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+h3{font-size:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+h3 small{font-weight:500;color:var(--muted);font-size:12px}
+.row{display:flex;align-items:center;gap:10px;padding:11px 2px;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:none}
+.row .m{flex:1;min-width:0}.row .n{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .d{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.row .v{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
+.pill{font-size:11px;font-weight:700;padding:2px 7px;border-radius:9px;white-space:nowrap}
+.ps{background:#e6f6f3;color:var(--saleT)}.pb{background:#fff4e0;color:var(--buy)}
+.pu{background:#fde8e8;color:var(--red)}.pp{background:#e6f6f3;color:var(--saleT)}
+.old{color:var(--red)}
+input[type=search]{width:100%;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);margin-bottom:10px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:none;background:none;font:inherit;font-size:12px;color:var(--muted);padding:9px 0 10px}
+nav button b{display:block;font-size:20px;line-height:1.2}
+nav button.on{color:var(--acc);font-weight:700}
+.page{display:none}.page.on{display:block}
+.empty{color:var(--muted);text-align:center;padding:24px 0;font-size:14px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:5px 9px;font:inherit;font-size:12px;font-weight:600}
+.items{font-size:13px;color:var(--sub);padding:2px 0 10px 4px}
+.items div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+#msg{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#1a1d23;color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;display:none;white-space:nowrap}
+svg text{font-size:11px;fill:var(--muted)}
+.fl{display:block;font-size:12px;color:var(--sub);font-weight:600;margin-bottom:10px}
+.fl input,.it input{display:block;width:100%;font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);margin-top:4px}
+.it{display:grid;grid-template-columns:1fr 64px 96px 28px;gap:6px;align-items:end;margin-bottom:8px}
+.it input{margin-top:0;padding:10px 8px}.isug:empty{display:none}.it{position:relative}.it .s{grid-column:1/-1;font-size:14px;padding:7px 8px;margin-top:-2px}.isug{position:absolute;left:0;right:0;top:100%;z-index:8;margin-top:2px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 6px 0;box-shadow:0 6px 18px rgba(0,0,0,.3);max-height:230px;overflow:auto}.it .x{border:none;background:none;color:var(--muted);font-size:18px;padding:8px 0}
+.big{flex:1;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:13px 0;font:inherit;font-size:15px;font-weight:700}
+.big.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.wn{font-size:12px;color:var(--sub);background:#fff8e1;border-radius:6px;padding:4px 7px;margin-top:4px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+@media (prefers-color-scheme:dark){.wn{background:#2e2a1c}}
+</style><meta name="theme-color" content="#1d1f24"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><title>한결연마 ERP</title><script>
+(function(){
+var URL_="https://script.google.com/macros/s/AKfycbxMEVCsZ9bATYLoEEd8DGTyGYmCLXKvp2agNyGVp2w9o5MdERYOXxyKqlr7FGyvJDa9/exec";
+function key(){try{return localStorage.getItem('hg_key')||''}catch(e){return ''}}
+try{var m=location.hash.match(/k=([0-9a-f]+)/);if(m){localStorage.setItem('hg_key',m[1]);history.replaceState(null,'',location.pathname);}}catch(e){}
+function askKey(){
+  if(document.getElementById('hgkey'))return;
+  var d=document.createElement('div');d.id='hgkey';
+  d.style.cssText='position:fixed;inset:0;z-index:99;background:var(--bg,#fff);display:flex;flex-direction:column;justify-content:center;padding:30px;gap:12px;font-size:16px';
+  d.innerHTML='<b style="font-size:20px">한결연마 ERP</b><div>처음 한 번만 열쇠를 넣어 주세요 (카톡으로 받은 글자)</div>'+
+    '<input id="hgk" style="font:inherit;padding:12px;border:1px solid #ccc;border-radius:10px" autocomplete="off">'+
+    '<button id="hgb" style="font:inherit;padding:12px;border:0;border-radius:10px;background:#2563eb;color:#fff">저장</button>';
+  (document.body||document.documentElement).appendChild(d);
+  document.getElementById('hgb').onclick=function(){var v=document.getElementById('hgk').value.trim();if(!v)return;
+    try{localStorage.setItem('hg_key',v)}catch(e){}location.reload();};
+}
+function call(fn,args,ok,bad){
+  if(!key()){askKey();return;}
+  fetch(URL_,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({action:'app',key:key(),fn:fn,args:args})})
+  .then(function(r){return r.json()})
+  .then(function(j){
+    if(j.ok){if(fn==='getMobileData'){try{localStorage.setItem('hg_data',JSON.stringify(j.res))}catch(e){}}ok&&ok(j.res);}
+    else{if(j.error==='열쇠'){try{localStorage.removeItem('hg_key')}catch(e){}askKey();}bad&&bad(new Error(j.error||'실패'));}
+  })
+  .catch(function(){bad&&bad(new Error('인터넷 연결을 확인해 주세요'))});
+}
+function runner(ok,bad){return new Proxy({},{get:function(_,p){
+  if(p==='withSuccessHandler')return function(f){return runner(f,bad)};
+  if(p==='withFailureHandler')return function(f){return runner(ok,f)};
+  return function(){var a=[].slice.call(arguments);
+    if(p==='getMobileData'&&ok){try{var c=localStorage.getItem('hg_data');if(c)setTimeout(function(){ok(JSON.parse(c))},0);}catch(e){}}
+    call(p,a,ok,bad);};
+}})}
+window.google={script:{run:runner(null,null)}};
+if('serviceWorker' in navigator)addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+})();
+</script>
+</head>
+<body>
+<header><b>한결<span>연마</span> ERP</b><span style="display:flex;gap:6px"><button id="bell">🔔<i></i></button><a id="reload" href="./">새로고침</a></span></header>
+<main>
+  <section class="page on" id="p-home">
+    <div class="kpis" id="kpis"><div class="empty" style="grid-column:1/-1">불러오는 중…</div></div>
+    <div class="card"><h3><span>월별 매출<span class="u">공급가 · 달을 누르면 자세히</span></span> <small><span style="color:var(--sale)">━</span> 올해 <span style="color:var(--gray)">━</span> 작년</small></h3><div id="chart"></div></div>
+    <div class="card"><h3>챙길 일</h3><div id="todo"></div></div>
+    <div class="card"><h3><span>💰 세금 준비<span class="u">대략값</span></span></h3><div id="tax"></div></div>
+    <div class="card"><h3><span>이번 달 거래처 TOP 5<span class="u">공급가</span></span></h3><div id="top"></div></div>
+  </section>
+  <section class="page" id="p-unpaid">
+    <input type="search" id="uq" placeholder="업체 검색 (자음만: ㅈㅌㅇ → 제이티엠)" oninput="debU()">
+    <div class="card"><h3><span>미수 업체<span class="u">VAT 포함</span></span> <small id="u-sum"></small></h3>
+      <button class="btn" style="width:100%;margin-bottom:8px;padding:9px" onclick="printUnpaid()">🖨 미수현황 PC에서 인쇄 <span id="u-pfor" style="color:var(--muted);font-weight:500"></span></button>
+      <div id="unpaid"></div></div></section>
+  <section class="page" id="p-add">
+    <div class="card">
+      <h3><span id="a-title">거래 입력</span> <small>매출 · 공급가</small></h3>
+      <div id="a-edit" style="display:none;font-size:13px;background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:10px"></div>
+      <label class="fl">거래처<input id="a-p" autocomplete="off" placeholder="업체 이름 (자음만 가능)" oninput="debP()" onfocus="sugP()" onblur="setTimeout(()=>$('a-sug').innerHTML='',200)"></label>
+      <div id="a-sug" style="margin:-6px 0 10px"></div>
+      <label class="fl">날짜<input id="a-d" type="date"></label>
+      <div id="a-items"></div>
+      <button class="btn" style="margin:4px 0 10px" onclick="addItem()">＋ 품목 추가</button>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px"><input type="checkbox" id="a-cash" onchange="addSum()"> 현금 거래 (부가세 없음)</label>
+      <div id="a-sum" style="font-size:15px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px"><button class="big" id="a-s1" onclick="saveTx(false)">저장</button><button class="big pri" id="a-s2" onclick="saveTx(true)">저장 + PC 인쇄</button></div>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1;padding:9px" onclick="saveDraft()">💾 임시저장</button><button class="btn" style="flex:1;padding:9px" id="a-dl" onclick="openDrafts()">📂 임시저장 목록</button></div>
+      <div id="drafts" style="display:none;margin-top:8px"></div>
+      <div id="a-hint" style="font-size:12px;color:var(--muted);margin-top:10px"></div>
+    </div>
+    <div class="card"><h3>🖨 PC 인쇄 요청 <small>1분 안에 공장 프린터로</small></h3><div id="pq"></div></div>
+  </section>
+  <section class="page" id="p-partner">
+    <input type="search" id="pq2" placeholder="거래처·사업자번호·주소 (자음만 가능)" oninput="debPt()">
+    <div class="card"><h3>거래처 목록 <small id="pt-n"></small></h3><div id="plist"><div class="empty">불러오는 중…</div></div></div>
+  </section>
+  <section class="page" id="p-find">
+    <input type="search" id="q" placeholder="거래처·품목 (자음만: ㅂㅂ → 보부)" oninput="FM='';debFind()" style="margin-bottom:6px">
+    <div id="q-sug" style="margin-bottom:8px"></div>
+    <div class="card"><div id="found"><div class="empty">거래처나 품목을 입력하세요</div></div></div>
+  </section>
+  <section class="page" id="p-month">
+    <button class="btn" style="margin-bottom:10px;padding:8px 12px;font-size:14px" onclick="tab('home')">← 요약</button>
+    <div id="mview"></div>
+  </section>
+</main>
+<nav>
+  <button class="on" data-p="home" onclick="tab('home')"><b>🏠</b>요약</button>
+  <button data-p="add" onclick="tab('add')"><b>➕</b>입력</button>
+  <button data-p="unpaid" onclick="tab('unpaid')"><b>⏳</b>미수</button>
+  <button data-p="find" onclick="tab('find')"><b>🔎</b>검색</button>
+  <button data-p="partner" onclick="tab('partner')"><b>🏢</b>거래처</button>
+</nav>
+<div id="mailbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;align-items:flex-end;justify-content:center">
+  <div class="card" style="width:100%;max-width:520px;margin:0;border-radius:16px 16px 0 0;padding:18px 16px 24px">
+    <h3><span id="m-head">📧 거래명세서 메일</span> <small onclick="$('mailbox').style.display='none'" style="font-size:20px;padding:0 4px">✕</small></h3>
+    <div id="m-title" style="font-size:13px;color:var(--sub);margin-bottom:10px"></div>
+    <label class="fl">받는 사람<input id="m-to" type="email" inputmode="email" autocomplete="off" placeholder="example@company.com"></label>
+    <div id="m-warn" style="font-size:12px;color:var(--red);margin:-6px 0 10px">거래처 목록에 이메일이 없어요. 직접 넣어 주세요.</div>
+    <div id="m-pick" style="display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 10px"></div>
+    <div id="m-note" style="display:none">
+      <label class="fl">제목<input id="m-subj" autocomplete="off"></label>
+      <label class="fl">내용<textarea id="m-body" rows="6" style="display:block;width:100%;font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);margin-top:4px"></textarea></label></div>
+    <div style="font-size:14px;margin-bottom:6px;font-weight:600">📎 같이 보내기</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:15px;margin-bottom:14px">
+      <label><input type="checkbox" class="m-ex" value="bank"> 통장사본</label>
+      <label><input type="checkbox" class="m-ex" value="biz"> 사업자등록증</label>
+      <label><input type="checkbox" class="m-ex" value="intro"> 회사소개서</label></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px"><span id="m-info">거래명세서(공급받는자용) PDF가 붙고, </span>내 메일로 참조가 가요. 공장 PC가 켜져 있어야 해요.</div>
+    <div style="display:flex;gap:8px"><button class="big" onclick="$('mailbox').style.display='none'">취소</button><button class="big pri" onclick="mailSend()">보내기</button></div>
+  </div>
+</div>
+<div id="upbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;align-items:flex-end;justify-content:center">
+  <div class="card" style="width:100%;max-width:520px;margin:0;border-radius:16px 16px 0 0;padding:18px 16px 24px;max-height:85vh;display:flex;flex-direction:column">
+    <h3><span>🖨 미수현황 인쇄할 업체</span> <small onclick="$('upbox').style.display='none'" style="font-size:20px;padding:0 4px">✕</small></h3>
+    <div style="display:flex;gap:6px;margin-bottom:6px"><button class="btn" onclick="upAll(true)">전체 선택</button><button class="btn" onclick="upAll(false)">전체 해제</button></div>
+    <div id="up-list" style="overflow:auto;flex:1;margin-bottom:12px"></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">공장 PC에서 1분 안에 인쇄돼요. PC가 켜져 있어야 해요.</div>
+    <div style="display:flex;gap:8px"><button class="big" onclick="$('upbox').style.display='none'">취소</button><button class="big pri" id="up-go" onclick="upGo()"></button></div>
+  </div>
+</div>
+<div id="notebox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;align-items:flex-end;justify-content:center">
+  <div class="card" style="width:100%;max-width:520px;margin:0;border-radius:16px 16px 0 0;padding:18px 16px 24px">
+    <h3><span id="n-head">📄 거래명세서</span> <small onclick="$('notebox').style.display='none'" style="font-size:20px;padding:0 4px">✕</small></h3>
+    <div id="n-title" style="font-size:14px;font-weight:700"></div>
+    <div id="n-items" class="items" style="padding-bottom:8px"></div>
+    <div id="n-sum" style="font-size:13px;color:var(--sub);margin:-2px 0 10px"></div>
+    <div id="n-act" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px"></div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px">📝 작업 메모</div>
+    <textarea id="n-text" rows="7" style="display:block;width:100%;font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);margin-bottom:6px"></textarea>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">검색 탭에서 숫돌·RPM 글자로도 찾아져요. PC ERP 거래 목록에도 보여요.</div>
+    <div style="display:flex;gap:8px"><button class="big" onclick="$('notebox').style.display='none'">취소</button><button class="big pri" onclick="noteSave()">저장</button></div>
+  </div>
+</div>
+<div id="askbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;align-items:flex-end;justify-content:center">
+  <div class="card" style="width:100%;max-width:520px;margin:0;border-radius:16px 16px 0 0;padding:18px 16px 24px">
+    <div id="ask-msg" style="font-size:15px;line-height:1.6;white-space:pre-wrap;margin-bottom:16px"></div>
+    <input type="date" id="ask-date" style="display:none;width:100%;font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);margin-bottom:14px">
+    <div style="display:flex;gap:8px"><button class="big" id="ask-no">취소</button><button class="big pri" id="ask-yes">확인</button></div>
+  </div>
+</div>
+<div id="msg"></div>
+<script>
+const GOAL=20000000;  // 월 매출 목표 (2026-10-23 사장님: 2,000만)
+// 작년 월별 매출 (PC ERP의 PREV_YEAR와 같은 값, 계산서+카드 기준)
+const PREV={1:10124000,2:8925636,3:9076000,4:10460000,5:16166100,6:19862000,7:25797000,8:14373909,9:33277000,10:18995591,11:32792000,12:23579000};
+let TX=[];
+const $=id=>document.getElementById(id);
+const won=n=>Math.round(n).toLocaleString('ko-KR');
+const man=n=>Math.round(n/10000).toLocaleString('ko-KR')+'만';
+const eok=n=>n>=1e8?`${Math.floor(n/1e8)}억 ${Math.round(n%1e8/10000).toLocaleString('ko-KR')}만`:man(n);
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const short=p=>String(p||'').replace(/\(주\)|㈜|주식회사/g,'').trim();
+// 같은 회사 판단: (주)·주식회사·띄어쓰기·대소문자만 다르면 같은 곳 (yk테크=Yk테크, (주) 제현정공=제현정공(주)) — 사장님 기준 10/25
+const pk=p=>String(p||'').replace(/\(주\)|㈜|주식회사|\(유\)|유한회사|[\s()]/g,'').toLowerCase();
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const days=x=>Math.round((new Date(today())-new Date(x))/86400000);
+// 확인 창 (v18, 2026-11-02): 휴대폰 브라우저가 confirm() 팝업을 막으면(연달아 누르면 '추가 대화상자 차단') 버튼을 눌러도
+// 아무 일도 안 생겨서(제이에스케이 '수정 + PC 인쇄' 11/2) 화면 안에 직접 그리는 확인 창으로 바꿈
+// date를 주면 날짜 칸이 같이 나오고 확인 시 그 날짜(문자)를 돌려줌 (💳 결제일, v13)
+// v14 (2026-11-13): 자판이 열린 채로 확인 창이 뜨면 '확인'을 누를 때 자판이 먼저 닫히며 화면이 움직여 눌림이 안 먹던 일 → 창 띄우기 전에 자판 닫기
+function ask(msg,date){const ae=document.activeElement;if(ae&&ae.blur&&ae!==document.body)ae.blur();
+  return new Promise(res=>{const b=$('askbox');$('ask-msg').textContent=msg;b.style.display='flex';
+  const di=$('ask-date');di.style.display=date?'block':'none';if(date)di.value=date;
+  const done=v=>{b.style.display='none';$('ask-yes').onclick=$('ask-no').onclick=b.onclick=null;res(v);};
+  $('ask-yes').onclick=()=>done(date?(di.value||date):true);$('ask-no').onclick=()=>done(false);b.onclick=e=>{if(e.target===b)done(false);};});}
+// 저장 중 표시: 서버가 몇 초 걸리는 동안 화면이 멈춘 것처럼 보여 여러 번 누르던 일 → 가운데 '저장 중…' + 두 번 누르기 막기 (v14)
+let BUSY=false;
+function busy(on,t){BUSY=on;let m=$('busy');if(!m){m=document.createElement('div');m.id='busy';
+  m.style.cssText='display:none;position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.35);align-items:center;justify-content:center';
+  m.innerHTML='<div class="card" style="margin:0;padding:18px 26px;font-size:16px;font-weight:700" id="busy-t"></div>';document.body.appendChild(m);}
+  $('busy-t').textContent=t||'저장 중…';m.style.display=on?'flex':'none';
+  // v15: 25초 넘게 응답이 없으면(전파·화면 꺼짐) 가림막을 풀고 목록을 다시 불러옴 — 화면이 멈춘 채로 남지 않게
+  clearTimeout(busy._t);if(on)busy._t=setTimeout(()=>{if(!BUSY)return;busy(false);load();loadQueue();
+    ask('응답이 늦어요 (전파가 약하거나 화면이 꺼졌던 것 같아요).\n저장·인쇄 요청이 됐는지 거래 목록과 아래 인쇄 요청을 확인하고,\n안 됐을 때만 다시 눌러 주세요.');},25000);}
+// 휴대폰 화면을 다시 켜면 인쇄 요청 상태 새로 보기 (v15)
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&$('p-add')&&$('p-add').classList.contains('on'))loadQueue();});
+function toast(t){const m=$('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',2200);}
+function tab(p){document.querySelectorAll('.page').forEach(s=>s.classList.toggle('on',s.id==='p-'+p));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));window.scrollTo(0,0);
+  if(p==='find'){qSug();setTimeout(()=>$('q').focus(),50);}
+  if(p==='add'){if(!$('a-items').children.length)resetAdd();loadQueue();loadDrafts();}}
+
+// 초성 검색 (PC ERP hasText와 같은 방식)
+const CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+function hasText(text,q){
+  text=String(text||'').toLowerCase();q=String(q||'').trim().toLowerCase();
+  if(!q)return true;if(text.includes(q))return true;if(!/[ㄱ-ㅎ]/.test(q))return false;
+  const t=text.replace(/\s/g,''),qq=q.replace(/\s/g,'');
+  const same=(c,k)=>{if(c===k)return true;const code=c.charCodeAt(0)-0xAC00;return CHO.includes(k)&&code>=0&&code<11172&&CHO[Math.floor(code/588)]===k;};
+  for(let i=0;i+qq.length<=t.length;i++){let ok=true;for(let j=0;j<qq.length;j++){if(!same(t[i+j],qq[j])){ok=false;break;}}if(ok)return true;}
+  return false;
+}
+
+function load(){
+  $('reload').textContent='…';
+  google.script.run.withSuccessHandler(rows=>{TX=rows.sort((a,b)=>(b.d||'').localeCompare(a.d||'')||b.id-a.id);$('reload').textContent='새로고침';render();})
+    .withFailureHandler(e=>{$('reload').textContent='새로고침';toast('불러오기 실패: '+e.message);}).getMobileData();
+  loadPartners();
+}
+const sales=()=>TX.filter(t=>t.t==='매출');
+const unpaidTx=()=>sales().filter(t=>!t.card&&!t.paid);
+
+function render(){
+  const td=today(),ym=td.slice(0,7),y=td.slice(0,4),d=new Date();
+  const sum=a=>a.reduce((s,t)=>s+t.s,0);
+  const mS=sum(sales().filter(t=>t.d.startsWith(ym))),yS=sum(sales().filter(t=>t.d.startsWith(y)));
+  const m=d.getMonth()+1,dim=new Date(d.getFullYear(),m,0).getDate();
+  let yP=0;for(let i=1;i<=m;i++)yP+=i<m?PREV[i]:PREV[i]*d.getDate()/dim;
+  const dp=yP?Math.round((yS-yP)/yP*100):null,pct=Math.round(mS/GOAL*100);
+  const un=unpaidTx(),unSum=un.reduce((s,t)=>s+t.g,0);
+  const tS=sum(sales().filter(t=>t.d===td));
+  $('kpis').innerHTML=`
+    <div class="kpi" onclick="openMonth('${ym}')"><div class="t">${m}월 매출<span class="u">공급가</span></div><div class="v" style="color:var(--acc)">${man(mS)}</div>
+      <div class="s">목표 ${man(GOAL)} · <b>${pct}%</b> →</div><div class="bar"><i style="width:${Math.min(100,pct)}%"></i></div></div>
+    <div class="kpi"><div class="t">${y}년 누적<span class="u">공급가</span></div><div class="v" style="color:var(--sale)">${eok(yS)}</div>
+      <div class="s">${dp===null?'':`작년 같은 기간 <b style="color:${dp>=0?'var(--sale)':'var(--red)'}">${dp>=0?'▲':'▼'}${Math.abs(dp)}%</b>`}</div></div>
+    <div class="kpi" onclick="tab('unpaid')"><div class="t">미수금<span class="u">VAT 포함</span></div><div class="v" style="color:var(--red)">${man(unSum)}</div>
+      <div class="s">${new Set(un.map(t=>pk(t.p))).size}곳 →</div></div>
+    <div class="kpi" onclick="TODAY=!TODAY;todayList()"><div class="t">오늘 매출<span class="u">공급가</span></div><div class="v">${man(tS)}</div><div class="s">${sales().filter(t=>t.d===td).length}건 · 업체 보기 →</div></div>
+    <div id="today-list" style="grid-column:1/-1;display:none"></div>`;
+  todayList();
+  chart(y,m);
+  todo(ym);top5(ym);tax(td);
+  renderUnpaid();find();qSug();if($('p-month').classList.contains('on'))renderMonth();
+}
+// 오늘 매출 칸 누르면 오늘 일한 업체 목록 (다시 누르면 닫힘, 11/16 사장님 요청)
+let TODAY=false;
+function todayList(){const b=$('today-list');if(!b)return;
+  if(!TODAY){b.style.display='none';return;}
+  const l=TX.filter(t=>t.d===today()&&t.t==='매출'&&!t.card);
+  b.style.display='block';
+  b.innerHTML=`<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px"><div style="font-size:12px;color:var(--sub);font-weight:600">오늘 일한 업체 · ${new Set(l.map(t=>pk(t.p))).size}곳</div>`
+    +(l.length?l.map(t=>txRow(t)).join(''):'<div class="empty" style="padding:10px 0">오늘 매출이 아직 없어요</div>')+'</div>';}
+// 입력 탭 거래처 추천: 최근 거래 순 + 거래처 목록 (2026-10-29: 휴대폰 기본 자동완성(datalist)은 한글 입력 중 '한성특ㅅ'에서 목록이 닫히고
+// 다시 안 떠서 직접 만든 목록으로 바꿈. 자음만·중간 글자도 찾음)
+// v37 (11/20 사장님: 입력·검색할 때 자주 멈춤): 글자 칠 때마다(한글은 자음·모음마다) 전체 거래를 다시 훑고 화면을 다시 그리던 것 →
+// 손 멈추고 0.25초 뒤 한 번만(deb) + 거래처·품목 후보는 거래가 바뀔 때만 다시 만듦(캐시)
+const deb=(f,ms)=>{let h;return(...a)=>{clearTimeout(h);h=setTimeout(()=>f(...a),ms||250);};};
+const debFind=deb(()=>{find();qSug();}),debP=deb(()=>{addHint();sugP();}),debI=deb(inp=>{if(document.activeElement===inp)sugI(inp);}),debU=deb(()=>renderUnpaid()),debPt=deb(()=>renderPartners());
+let _pnK=null,_pnK2=-1,_pn=[];
+function partnerNames(){if(_pnK===TX&&_pnK2===TX.length+'|'+PARTNERS.length)return _pn;
+  const seen=new Set(),out=[];
+  sales().filter(t=>!t.card&&t.p).map(t=>t.p).concat(PARTNERS.map(p=>p[0])).forEach(n=>{const k=pk(n);if(n&&k&&!seen.has(k)){seen.add(k);out.push(n);}});
+  _pnK=TX;_pnK2=TX.length+'|'+PARTNERS.length;_pn=out;return out;}
+function sugP(){const q=$('a-p').value.trim(),box=$('a-sug');
+  if(!q){box.innerHTML='';return;}
+  const qk=pk(q),hit=partnerNames().filter(n=>pk(n)!==qk&&(hasText(short(n),q)||hasText(pk(n),qk))).slice(0,8);
+  box.innerHTML=hit.map(n=>`<button class="btn" style="margin:0 6px 6px 0;padding:8px 11px;font-size:14px" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="pickP(this.dataset.n)" data-n="${esc(n)}">${esc(n)}</button>`).join('');}
+function pickP(n){$('a-p').value=n;$('a-sug').innerHTML='';addHint();}
+
+// ─── 거래 입력 (휴대폰 → ERP 매출, 미수로 저장) ───
+let EDIT=null,DRAFT=null,DRAFTS=[];  // DRAFT: 불러온 임시저장 id (v15) / EDIT: 고치는 중인 거래 id (v11, 2026-10-29)
+function resetAdd(){$('a-p').value='';$('a-d').value=today();$('a-cash').checked=false;$('a-items').innerHTML='';addItem();addSum();$('a-hint').textContent='';
+  EDIT=null;DRAFT=null;$('a-edit').style.display='none';$('a-title').textContent='거래 입력';$('a-s1').textContent='저장';$('a-s2').textContent='저장 + PC 인쇄';}
+function addItem(it){const d=document.createElement('div');d.className='it';
+  d.innerHTML=`<input placeholder="품목명" class="n" oninput="debI(this)" onfocus="sugI(this)" onblur="const b=this.parentNode.querySelector('.isug');setTimeout(()=>{if(document.activeElement!==this)b.innerHTML=''},300)"><input type="number" inputmode="numeric" placeholder="수량" class="q" value="1" oninput="addSum()"><input type="number" inputmode="numeric" placeholder="단가" class="u" oninput="this.parentNode.dataset.auto='';addSum()"><button class="x" onclick="this.parentNode.remove();addSum()">✕</button><input class="s" placeholder="규격 (선택, 예: ∅600X14T)"><div class="isug"></div>`;
+  if(it){d.querySelector('.n').value=it[0];d.querySelector('.s').value=it[1]||'';d.querySelector('.q').value=it[2];d.querySelector('.u').value=it[3];}
+  $('a-items').appendChild(d);}
+// 품목 추천 (11/18 사장님: 와이에이치 '카본∮400'처럼 매번 안 치게). 칸 누르면 그 거래처 최근 품목, 글자 치면 다른 거래처 품목까지(초성도)
+// 그 거래처 품목은 마지막 단가도 같이 채움(단가 칸이 비었을 때만)
+// v35 (11/18 사장님: 품명만 떠서 구별이 안 감): 품명+규격을 한 묶음으로 → 버튼에 규격도, 고르면 규격 칸도 채움
+let _icK=null;
+function itemCands(){const p=pk($('a-p').value.trim()),key=[p,TX.length];
+  if(_icK&&_icK.tx===TX&&_icK.k===key.join('|'))return _icK.v;
+  const v=itemCands0(p);_icK={tx:TX,k:key.join('|'),v};return v;}
+function itemCands0(p){const a=new Map(),b=new Map();
+  sales().filter(t=>!t.card).forEach(t=>{const m=p&&pk(t.p)===p?a:b;t.it.forEach(i=>{const n=String(i[0]||'').trim(),s=String(i[1]||'').trim(),k=n+'|'+s;
+    if(n&&!m.has(k))m.set(k,{n,s,u:Number(i[3])||0});});});
+  return [...a.values()].concat([...b].filter(([k])=>!a.has(k)).map(([,x])=>({n:x.n,s:x.s,u:0})));}
+function sugI(inp){const q=inp.value.trim(),box=inp.parentNode.querySelector('.isug'),p=pk($('a-p').value.trim());
+  const c=itemCands(),hit=(q?c.filter(x=>(x.n!==q||x.s)&&hasText(x.n+' '+x.s,q)):c.filter(x=>x.u&&p)).slice(0,10);
+  box.innerHTML=hit.map(x=>`<button class="btn" style="display:block;width:100%;text-align:left;margin:0 0 6px;padding:8px 11px;font-size:14px" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" onclick="pickI(this)" data-n="${esc(x.n)}" data-s="${esc(x.s)}" data-u="${x.u}">${esc(x.n)}${x.s?` <b style="color:var(--acc)">${esc(x.s)}</b>`:''}${x.u?` <span style="color:var(--sub)">· ${won(x.u)}</span>`:''}</button>`).join('');}
+// 고르는 건 onclick에서(11/18: 누르자마자 목록을 지우면 화면이 위로 올라가 손가락 밑의 '임시저장'이 눌리던 일)
+// v34: 그래도 휴대폰에서 '임시저장'이 눌려서(11:39·11:48 실행 기록에 임시저장만 연달아) 추천 목록을 화면 위에 떠 있는 창으로 —
+// 목록이 생기고 없어져도 아래 버튼들이 안 움직임
+function pickI(b){const r=b.closest('.it'),u=Number(b.dataset.u)||0;r.querySelector('.n').value=b.dataset.n;r.querySelector('.s').value=b.dataset.s||'';
+  // 단가: 비었거나 앞서 추천으로 채운 값이면 바꿈(손으로 친 단가는 그대로)
+  if(u&&(!r.querySelector('.u').value||r.dataset.auto)){r.querySelector('.u').value=u;r.dataset.auto=1;}
+  r.querySelector('.isug').innerHTML='';addSum();}
+function addRows(){return [...$('a-items').children].map(d=>({name:d.querySelector('.n').value.trim(),spec:d.querySelector('.s').value.trim(),qty:Number(d.querySelector('.q').value)||0,price:Number(d.querySelector('.u').value)||0})).filter(i=>i.name&&i.qty&&i.price);}
+// 거래명세서 고치기: 입력 칸에 그 거래를 채워 넣고 '수정 저장'으로 바꿈
+function editTx(id){const t=TX.find(x=>x.id===id);if(!t)return;
+  tab('add');resetAdd();EDIT=id;
+  $('a-p').value=t.p;$('a-d').value=t.d;$('a-cash').checked=t.s>0&&!t.v;
+  // 홈택스 계산서로 들어온 거래는 단가 0·합계만 있음(필리스코리아 9/30 3개×0 → 고치기 화면이 0원이라 저장 안 되던 일, 11/16)
+  // → 수량으로 나눠 떨어지면 단가로, 아니면 1개 × 공급가
+  const fix=i=>{if(i[3]||!(i[4]||t.it.length===1))return i;const s=i[4]||t.s,q=i[2]||1;return q>1&&s%q===0?[i[0],i[1],q,s/q]:[i[0],i[1],1,s];};
+  $('a-items').innerHTML='';(t.it.length?t.it.map(fix):[['연마','',1,t.s]]).forEach(i=>addItem(i));
+  $('a-title').textContent='✏ 거래명세서 고치기';$('a-s1').textContent='수정 저장';$('a-s2').textContent='수정 + PC 인쇄';
+  $('a-edit').innerHTML=`${t.d.slice(5).replace('-','/')} ${esc(short(t.p))} · 공급가 ${won(t.s)}원${t.paid?' · 입금됨':''}`
+    +(t.inv||t.ht?`<div style="color:var(--red);margin-top:4px">⚠ 계산서 발행됨 (${t.inv?esc(t.inv):'홈택스'}) — 금액을 바꾸면 계산서와 안 맞아요</div>`:'')
+    +`<div style="margin-top:6px"><button class="btn" onclick="resetAdd()">수정 취소</button></div>`;
+  $('a-edit').style.display='block';addSum();addHint();window.scrollTo(0,0);}
+function addSum(){const s=addRows().reduce((a,i)=>a+i.qty*i.price,0),v=$('a-cash').checked?0:Math.round(s*.1);
+  $('a-sum').innerHTML=s?`공급가 <b>${won(s)}</b> + 부가세 ${won(v)} = <b style="color:var(--acc)">${won(s+v)}원</b>`:'';}
+// 그 거래처의 예전 단가 보여주기
+function addHint(){const p=$('a-p').value.trim();if(!p){$('a-hint').textContent='';return;}
+  const last=sales().filter(t=>!t.card&&pk(t.p)===pk(p)).slice(0,3);
+  $('a-hint').innerHTML=last.length?'최근 거래: '+last.map(t=>`${t.d.slice(5).replace('-','/')} ${esc((t.it[0]||[''])[0])} ${t.it[0]?won(t.it[0][3])+'원':''}`).join(' · ')
+    :(TX.some(t=>pk(t.p)===pk(p))?'':'⚠ 처음 보는 거래처예요. 이름을 확인하세요');}
+async function saveTx(print,force){if(BUSY)return;
+  const items=addRows(),p=$('a-p').value.trim(),d=$('a-d').value;
+  if(!p)return toast('거래처를 넣어 주세요');if(!items.length)return toast('품목·수량·단가를 넣어 주세요');
+  const s=items.reduce((a,i)=>a+i.qty*i.price,0);
+  if(EDIT){const id=EDIT;
+    if(!await ask(`${p} · ${d}\n${items.map(i=>`${i.name} ${i.qty}개 × ${won(i.price)}`).join('\n')}\n공급가 ${won(s)}원${$('a-cash').checked?' (현금)':''}\n\n이렇게 고칠까요?${print?'\n고친 뒤 공장 PC에서 다시 인쇄돼요.':''}`))return;
+    busy(true,'고치는 중…');
+    return google.script.run.withSuccessHandler(r=>{busy(false);
+      toast(r&&r.queued?'고쳤어요 · PC로 인쇄 요청했어요':'고쳤어요');if(r&&r.queued){loadQueue();setTimeout(loadQueue,70000);}resetAdd();load();
+    }).withFailureHandler(e=>{busy(false);toast('수정 실패: '+e.message);})
+      .mobileUpdateTx({id,partner:p,date:d,cash:$('a-cash').checked,items,print:!!print,label:`${short(p)} 거래명세서 (수정)`});}
+  const dr=DRAFT;  // 임시저장에서 불러온 거면 저장 후 그 임시저장은 지움 (v15)
+  if(!force&&!await ask(`${p} · ${d}\n${items.map(i=>`${i.name} ${i.qty}개 × ${won(i.price)}`).join('\n')}\n공급가 ${won(s)}원${$('a-cash').checked?' (현금)':''}\n\nERP에 매출(미수)로 저장할까요?${print?'\n저장 후 공장 PC에서 거래명세서가 인쇄돼요.':''}`))return;
+  busy(true,'저장 중…');
+  google.script.run.withSuccessHandler(async r=>{busy(false);
+    if(r.dup){if(await ask(`같은 날 ${p} 공급가 ${won(r.supply)}원 거래가 이미 있어요.\n그래도 한 번 더 저장할까요?`))saveTx(print,true);return;}
+    // v15: 인쇄 요청·임시저장 지우기는 서버가 저장과 같이 함 (응답이 안 와도 빠지지 않게)
+    toast(r.queued?'저장했어요 · PC로 인쇄 요청했어요 (1분 안에 나와요)':'저장했어요');
+    if(r.queued){loadQueue();setTimeout(loadQueue,70000);}
+    if(dr)loadDrafts();
+    resetAdd();load();
+  }).withFailureHandler(e=>{busy(false);toast('저장 실패: '+e.message);})
+    .mobileSaveTx({partner:p,date:d,cash:$('a-cash').checked,items,force:!!force,print:!!print,label:`${short(p)} 거래명세서`,draft:dr||0});
+}
+
+// ─── 거래명세서 임시저장 (v15, 2026-11-16): PC ERP '💾 임시저장'과 같은 목록(stmt_drafts_v1) — PC에서 저장한 것도 여기서 이어 씀 ───
+function loadDrafts(){google.script.run.withSuccessHandler(l=>{DRAFTS=l||[];
+    $('a-dl').textContent='📂 임시저장 목록'+(DRAFTS.length?' '+DRAFTS.length:'');if($('drafts').style.display!=='none')showDrafts();})
+  .withFailureHandler(()=>{}).mobileDrafts();}
+function saveDraft(){if(BUSY)return;if(EDIT)return toast('고치는 중엔 임시저장이 안 돼요');
+  const p=$('a-p').value.trim(),items=[...$('a-items').children].map(d=>({name:d.querySelector('.n').value.trim(),spec:d.querySelector('.s').value.trim(),
+    qty:Number(d.querySelector('.q').value)||0,price:Number(d.querySelector('.u').value)||0})).filter(i=>i.name||i.price);
+  if(!p&&!items.length)return toast('저장할 내용이 없어요');
+  busy(true,'임시저장 중…');
+  google.script.run.withSuccessHandler(d=>{busy(false);DRAFT=d.id;toast('💾 임시저장했어요 (PC에서도 보여요)');loadDrafts();})
+    .withFailureHandler(e=>{busy(false);toast('임시저장 실패: '+e.message);}).mobilePutDraft({id:DRAFT,date:$('a-d').value,partner:p,items});}
+function openDrafts(){const b=$('drafts');if(b.style.display!=='none'){b.style.display='none';return;}
+  b.style.display='block';b.innerHTML='<div style="color:var(--muted);font-size:13px">불러오는 중…</div>';loadDrafts();}
+function showDrafts(){const b=$('drafts');
+  if(!DRAFTS.length){b.innerHTML='<div style="color:var(--muted);font-size:13px">임시저장한 명세서가 없어요</div>';return;}
+  const ago=t=>{const s=(Date.now()-t)/6e4;return s<60?Math.max(1,Math.round(s))+'분 전':s<1440?Math.round(s/60)+'시간 전':Math.round(s/1440)+'일 전';};
+  b.innerHTML=DRAFTS.map(d=>{const nm=(d.items||[]).map(i=>i.name).filter(Boolean);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 4px;border-top:1px solid var(--line)">
+      <div style="flex:1;min-width:0" onclick="useDraft(${d.id})"><b>${esc(short(d.partner||'(거래처 없음)'))}</b> <small style="color:var(--muted)">${esc((d.date||'').slice(5).replace('-','/'))} · ${ago(d.at)}</small>
+      <div style="font-size:13px;color:var(--muted)">${esc(nm.slice(0,2).join(', ')+(nm.length>2?` 외 ${nm.length-2}건`:''))} · ${won(d.supply||0)}원</div></div>
+      <button class="btn" style="padding:4px 9px" onclick="delDraft(${d.id},this)">✕</button></div>`;}).join('');}
+function useDraft(id){const d=DRAFTS.find(x=>String(x.id)===String(id));if(!d)return;
+  resetAdd();DRAFT=d.id;$('a-p').value=d.partner||'';$('a-d').value=d.date||today();$('a-items').innerHTML='';
+  (d.items&&d.items.length?d.items:[{name:'',qty:1,price:0}]).forEach(i=>addItem([i.name||'',i.spec||'',i.qty||1,
+    i.price||(i.qty&&i.supply?Math.round(i.supply/i.qty):'')]));
+  $('drafts').style.display='none';addSum();addHint();window.scrollTo(0,0);toast('📂 불러왔어요 — 저장하면 임시저장은 지워져요');}
+function delDraft(id,b){if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='지울까요?';b.style.background='var(--red)';b.style.color='#fff';return;}
+  google.script.run.withSuccessHandler(()=>{if(String(DRAFT)===String(id))DRAFT=null;DRAFTS=DRAFTS.filter(x=>String(x.id)!==String(id));showDrafts();loadDrafts();})
+    .withFailureHandler(e=>toast('지우기 실패: '+e.message)).mobilePutDraft({id:id,del:true});}
+
+// ─── PC 인쇄 요청 (공장 PC의 print_queue.py가 1분마다 가져가 인쇄) ───
+function queuePrint(job){
+  google.script.run.withSuccessHandler(()=>{toast('PC로 인쇄 요청했어요 (1분 안에 나와요)');loadQueue();setTimeout(loadQueue,70000);})
+    .withFailureHandler(e=>toast('요청 실패: '+e.message)).mobileQueuePrint(job);}
+async function printTx(id){const t=TX.find(x=>x.id===id);if(!t)return;
+  if(await ask(`${short(t.p)} ${t.d.slice(5).replace('-','/')} 거래명세서를\n공장 PC에서 인쇄할까요?`))queuePrint({kind:'stmt',txId:id,label:`${short(t.p)} 거래명세서`});}
+// 업체 체크 창 → 체크한 곳만 인쇄 (2026-11-02, 검색 중이면 찾은 업체만 체크돼서 열림)
+function printUnpaid(){if(!UNPAID.length)return toast('미수 없음');const q=($('uq').value||'').trim();
+  $('up-list').innerHTML=UNPAID.map((x,i)=>`<label style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:16px">
+    <input type="checkbox" class="up-ck" value="${i}" ${!q||hasText(x.p,q)?'checked':''} onchange="upCount()" style="width:20px;height:20px">
+    <span style="flex:1">${esc(x.p)}</span><b>${won(x.sum)}</b></label>`).join('');
+  $('upbox').style.display='flex';upCount();}
+const upPicked=()=>[...document.querySelectorAll('.up-ck:checked')].map(c=>UNPAID[+c.value]);
+function upAll(v){document.querySelectorAll('.up-ck').forEach(c=>c.checked=v);upCount();}
+function upCount(){const l=upPicked();$('up-go').textContent=l.length?`🖨 ${l.length}곳 인쇄 · ${won(l.reduce((s,x)=>s+x.sum,0))}`:'업체를 골라 주세요';}
+function upGo(){const l=upPicked();if(!l.length)return;$('upbox').style.display='none';
+  const all=l.length===UNPAID.length,partner=all?'':l.map(x=>x.p).join(',');
+  queuePrint({kind:'unpaid',partner,label:'미수현황 '+(all?'전체':l.length===1?l[0].p:`${l[0].p} 외 ${l.length-1}곳`)});}
+function loadQueue(){google.script.run.withSuccessHandler(q=>{
+  const st={wait:'⏳ 대기',done:'✅ 인쇄됨',fail:'⚠ 실패'};
+  $('pq').innerHTML=q.length?q.map(j=>`<div class="row"><div class="m"><div class="n">${esc(j.label||j.kind)}</div><div class="d">${j.at}${j.msg?' · '+esc(j.msg):''}</div></div><div class="v" style="font-size:13px">${j.kind==='mail'&&j.status==='done'?'✅ 보냄':st[j.status]||j.status}</div></div>`).join('')
+    :'<div class="empty">요청 없음</div>';}).mobileGetQueue();}
+
+// ─── 거래명세서 메일 (v7, 2026-10-28): PC가 1분 안에 공급받는자용 PDF + 고른 서류를 보냄 ───
+let MAIL_ID=0,NOTE_P=null;
+function mailMode(note){NOTE_P=note;$('m-note').style.display=note?'block':'none';
+  $('m-head').textContent=note?'📧 메일 보내기':'📧 거래명세서 메일';$('m-info').style.display=note?'none':'inline';}
+// 거래처 탭 📧: 그냥 메일 (제목·내용 + 서류) — v8
+function noteP(i){const p=PL[i];if(!p)return;mailMode(p);
+  $('m-title').textContent=p[0];setTo(p);
+  $('m-subj').value='[한결연마] ';$('m-body').value='안녕하세요, 한결연마 고정훈입니다.\n\n\n\n감사합니다.';
+  document.querySelectorAll('.m-ex').forEach(x=>x.checked=false);
+  $('mailbox').style.display='flex';}
+function mailTx(id){const t=TX.find(x=>x.id===id);if(!t)return;MAIL_ID=id;mailMode(null);
+  const p=PARTNERS.find(x=>pk(x[0])===pk(t.p));
+  $('m-title').textContent=`${short(t.p)} · ${t.d.slice(5).replace('-','/')} · 공급가 ${won(t.s)}`;
+  setTo(p);
+  document.querySelectorAll('.m-ex').forEach(x=>x.checked=false);
+  $('mailbox').style.display='flex';}
+// 담당자(p[5], 한 줄에 한 명 '구매팀 문병조 bjmoon@ksm.co.kr') → 맨 위 사람이 기본, 버튼으로 바꾸기 (10/29)
+function cts(p){return String(p&&p[5]||'').split('\n').map(l=>{const m=l.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/);return m?{l:l.replace(m[0],'').replace(/[<>(),|]/g,' ').trim(),e:m[0]}:null;}).filter(Boolean);}
+function setTo(p){const c=cts(p),all=c.map(x=>({...x,i:'👤'}));
+  if(p&&p[4]&&!c.some(x=>x.e.toLowerCase()===p[4].toLowerCase()))all.push({l:'계산서',e:p[4],i:'🧾'});
+  $('m-to').value=all.length?all[0].e:'';$('m-warn').style.display=all.length?'none':'block';
+  $('m-pick').innerHTML=all.length>1?all.map(x=>`<button class="btn" style="padding:5px 9px;font-size:12px" onclick="$('m-to').value='${esc(x.e)}'">${x.i} ${esc(x.l||x.e)}</button>`).join(''):'';}
+async function mailSend(){
+  const to=$('m-to').value.trim();if(!/^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/.test(to))return toast('이메일 주소를 확인해 주세요');
+  const extra=[...document.querySelectorAll('.m-ex:checked')].map(x=>x.value);
+  const names={bank:'통장사본',biz:'사업자등록증',intro:'회사소개서'};
+  if(NOTE_P){const subject=$('m-subj').value.trim(),body=$('m-body').value;
+    if(!body.trim()&&!extra.length)return toast('내용을 넣어 주세요');
+    if(!await ask(`${to}\n로 "${subject}" 메일${extra.map(x=>' + '+names[x]).join('')}\n을 보낼까요? (공장 PC가 1분 안에 보내요)`))return;
+    return google.script.run.withSuccessHandler(()=>{$('mailbox').style.display='none';toast('PC로 메일 요청했어요 (1분 안에 보내요)');loadQueue();setTimeout(loadQueue,70000);})
+      .withFailureHandler(e=>toast('요청 실패: '+e.message))
+      .mobileQueuePrint({kind:'note',txId:0,to,extra,subject,body,label:`📧 ${short(NOTE_P[0])} 메일 → ${to}`});}
+  const t=TX.find(x=>x.id===MAIL_ID);if(!t)return;
+  if(!await ask(`${to}\n로 ${short(t.p)} ${t.d.slice(5).replace('-','/')} 거래명세서${extra.map(x=>' + '+names[x]).join('')}\n메일을 보낼까요? (공장 PC가 1분 안에 보내요)`))return;
+  google.script.run.withSuccessHandler(()=>{$('mailbox').style.display='none';toast('PC로 메일 요청했어요 (1분 안에 보내요)');loadQueue();setTimeout(loadQueue,70000);})
+    .withFailureHandler(e=>toast('요청 실패: '+e.message))
+    .mobileQueuePrint({kind:'mail',txId:t.id,to,extra,label:`📧 ${short(t.p)} 거래명세서 → ${to}`});}
+
+// ─── 거래처 목록 (v7): PC ERP 거래처 (상호·사업자번호·대표·주소·이메일) ───
+let PARTNERS=[],PL=[];
+function loadPartners(){google.script.run.withSuccessHandler(l=>{PARTNERS=l||[];renderPartners();}).mobileGetPartners();}
+function renderPartners(){const q=($('pq2')||{}).value||'';
+  const l=PL=PARTNERS.filter(p=>!q||hasText(p[0],q)||hasText(p[1]+p[2]+p[3]+(p[6]||'')+(p[7]||''),q)).slice(0,60);
+  $('pt-n').textContent=`${l.length}곳`;
+  $('plist').innerHTML=l.map((p,i)=>`<div class="row" style="align-items:flex-start"><button class="btn" style="order:2;padding:6px 9px" onclick="noteP(${i})">📧</button><div class="m">
+      <div class="n">${esc(p[0])}</div>
+      <div class="d">${esc(p[1])} · ${esc(p[2])}</div>${p[6]||p[7]?`<div class="d" style="white-space:normal">🏭 ${esc(p[6]||'')}${p[6]&&p[7]?' · ':''}${esc(p[7]||'')}</div>`:''}
+      <div class="d" style="white-space:normal">${esc(p[3])||'<span class="old">주소 없음</span>'}</div>
+      <div class="d">🧾 ${p[4]?`<a href="mailto:${esc(p[4])}" style="color:var(--acc)">${esc(p[4])}</a>`:'<span class="old">이메일 없음</span>'}</div>${cts(p).map(c=>`<div class="d">👤 ${esc(c.l)} <a href="mailto:${esc(c.e)}" style="color:var(--acc)">${esc(c.e)}</a></div>`).join('')}</div></div>`).join('')
+    ||'<div class="empty">찾는 거래처가 없어요</div>';}
+
+// ─── 계산서 발행 표시 (챙길 일 → 계산서 미발행 누르면 펼침) ───
+function niList(){const el=$('ni-list');if(!el)return;if(el.style.display==='block'){el.style.display='none';return;}
+  const g={};NI.forEach(t=>{const k=pk(t.p)+'|'+t.d.slice(0,7);(g[k]=g[k]||{p:short(t.p),ym:t.d.slice(0,7),l:[]}).l.push(t);});
+  NIG=Object.values(g).sort((a,b)=>a.ym.localeCompare(b.ym));
+  el.innerHTML=NIG.map((x,i)=>`<div><span>${esc(x.p)} · ${+x.ym.slice(5)}월 ${x.l.length}건</span><span>${won(x.l.reduce((s,t)=>s+t.s,0))} <button class="btn" onclick="setInv(${i})">발행</button></span></div>`).join('')||'<div>없음</div>';
+  el.style.display='block';}
+async function setInv(i){const x=NIG[i];if(!x)return;
+  if(!await ask(`${x.p} ${+x.ym.slice(5)}월분 ${x.l.length}건을\n계산서 '발행됨'으로 표시할까요? (발행일 ${today()})`))return;
+  google.script.run.withSuccessHandler(()=>{x.l.forEach(t=>t.inv=today());$('ni-list').style.display='none';render();toast('발행 표시했어요');})
+    .withFailureHandler(e=>toast('실패: '+e.message)).mobileSetInvMany(x.l.map(t=>t.id),today());}
+let NI=[],NIG=[];
+
+// 세금 준비: 부가세 예상 (PC ERP vatEstimate · 자동화\vat_estimate.py와 같은 계산 — 고치면 셋 다)
+const TAX_HIST={'2025-2':{total:11987112,cardBuyVat:951773},'2026-1':{total:8253094,cardBuyVat:1099943}};
+const TAX_PREPAID={'2025-2':3202000,'2026-1':5993000,'2026-2':4125000};
+const TAX_CARD_BUY=Math.floor(Object.values(TAX_HIST).reduce((s,v)=>s+v.cardBuyVat,0)/Object.keys(TAX_HIST).length);
+function ymAdd(ym,n){let y=+ym.slice(0,4),m=+ym.slice(5)+n;y+=Math.floor((m-1)/12);m=((m-1)%12+12)%12+1;return y+'-'+String(m).padStart(2,'0');}
+function vatEstimate(y,h,td){
+  const cur=td.slice(0,7),m={};
+  TX.forEach(t=>{const k=(t.d||'').slice(0,7),x=m[k]||(m[k]={s:0,cs:0,cv:0,b:0,cb:0}),v=t.g-t.s;
+    if(t.t==='매출'){if(t.card){x.cs+=t.s;x.cv+=v;}else x.s+=v;}else if(t.p==='사업용카드')x.cb+=v;else x.b+=v;});
+  const g=(ym,k)=>(m[ym]||{})[k]||0;
+  const yms=[1,2,3,4,5,6].map(i=>y+'-'+String(6*h-6+i).padStart(2,'0'));
+  const avg={s:0,b:0};[1,2,3].map(i=>ymAdd(cur,-i)).forEach(ym=>{avg.s+=g(ym,'s')/3;avg.b+=g(ym,'b')/3;});
+  const card6=[1,2,3,4,5,6,7].map(i=>ymAdd(cur,-i)).filter(ym=>g(ym,'cs')).slice(0,6),cavg={cs:0,cv:0,cb:0};
+  card6.forEach(ym=>['cs','cv','cb'].forEach(k=>cavg[k]+=g(ym,k)/card6.length));
+  let s=0,b=0,cs=0,cv=0,cb=0,est=0;
+  yms.forEach(ym=>{
+    if(ym<cur){s+=g(ym,'s');b+=g(ym,'b');}
+    else{const ps=Math.max(g(ym,'s'),avg.s),pb=Math.max(g(ym,'b'),avg.b);s+=ps;b+=pb;est+=Math.max(ps-pb-(g(ym,'s')-g(ym,'b')),0);}
+    if(g(ym,'cs')||ym<ymAdd(cur,-1)){cs+=g(ym,'cs');cv+=g(ym,'cv');cb+=g(ym,'cb');}else{cs+=cavg.cs;cv+=cavg.cv;cb+=cavg.cb;}
+  });
+  const net=s+cv-b-(cs+cv)*0.013-36000,r=n=>Math.max(Math.round(n/1e5)*1e5,0);
+  const low=net-Math.max(cb,TAX_CARD_BUY)-est*0.15,high=net-cb+est*0.15;
+  let pre=TAX_PREPAID[y+'-'+h];
+  if(pre===undefined){const [py,ph]=h===2?[y,1]:[y-1,2];let prev=(TAX_HIST[py+'-'+ph]||{}).total;
+    if(prev===undefined&&py*10+ph>=20261){const p=vatEstimate(py,ph,td);prev=(p.low+p.high)/2;}
+    pre=prev&&prev/2>=5e5?Math.floor(prev/2):0;}
+  return {low:r(low),high:r(high),pre,payLow:r(low-pre),payHigh:r(high-pre)};
+}
+function taxDue(y,m,d){const x=new Date(y,m-1,d);while(x.getDay()===0||x.getDay()===6)x.setDate(x.getDate()+1);
+  return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
+function tax(td){
+  const y=+td.slice(0,4),dd=d=>Math.round((new Date(d)-new Date(td))/864e5);let rows=[];
+  [[y-1,2],[y,1],[y,2]].forEach(([py,ph])=>{
+    const x=vatEstimate(py,ph,td),fy=ph===2?py+1:py,fm=ph===2?1:7;
+    rows.push([taxDue(fy,fm,25),`${py%100}년 ${ph}기 확정`,x.payLow===x.payHigh?man(x.payHigh):`${man(x.payLow)}~${man(x.payHigh)}`,x.payHigh]);
+    const nxt=TAX_PREPAID[fy+'-'+(fm===1?1:2)],lo=nxt!==undefined?nxt:x.low/2,hi=nxt!==undefined?nxt:x.high/2;
+    if(hi>=5e5)rows.push([taxDue(fy,fm+3,25),'예정고지',lo===hi?won(hi)+'원':`${man(lo)}~${man(hi)}`,hi]);
+  });
+  rows=rows.filter(r=>dd(r[0])>=0).sort((a,b)=>a[0].localeCompare(b[0])).slice(0,3);
+  const big=rows.find(r=>r[1].includes('확정'));
+  $('tax').innerHTML=rows.map(([d,n,a])=>`<div class="row"><div class="m"><div class="n">${n}</div><div class="d">${d.slice(5).replace('-','/')}까지 · D-${dd(d)}</div></div><div class="v">${a}</div></div>`).join('')+
+    `<div class="d" style="font-size:12px;color:var(--muted);margin-top:6px">${big?`확정분은 넉넉히 <b>${man(big[3])}</b> 준비 · `:''}ERP 장부로 계산한 대략값</div>`;
+}
+
+// 챙길 일: 계산서 미발행 / 30일 넘은 미수 (PC ERP '챙길 일'과 같은 기준)
+function todo(ym){
+  const pd=new Date();pd.setDate(1);pd.setMonth(pd.getMonth()-1);
+  const prevYm=`${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`;
+  const ni=NI=sales().filter(t=>!t.card&&!t.ht&&t.g>t.s&&!t.inv&&(t.d.startsWith(ym)||t.d.startsWith(prevYm)));
+  const niPrev=new Set(ni.filter(t=>t.d.startsWith(prevYm)).map(t=>pk(t.p))),niAll=new Set(ni.map(t=>pk(t.p)));
+  const prevNames=[...new Map(ni.filter(t=>t.d.startsWith(prevYm)).map(t=>[pk(t.p),short(t.p)])).values()];
+  const old=unpaidTx().filter(t=>days(t.d)>=30),oldP=new Set(old.map(t=>pk(t.p)));
+  const row=(c,t,s,v,on)=>`<div class="row" ${on?`onclick="${on}"`:''}><span style="width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0"></span>
+    <div class="m"><div class="n">${t}</div><div class="d">${s}</div></div><div class="v">${v}</div></div>`;
+  $('todo').innerHTML=
+    row(niPrev.size?'var(--red)':niAll.size?'#f39c12':'var(--sale)','계산서 미발행',
+      niPrev.size?`지난달분 ${niPrev.size}곳 남음: ${esc(prevNames.slice(0,3).join(', '))}`:niAll.size?'월말에 발행 · 눌러서 발행 표시':'모두 발행됨',niAll.size?`${niAll.size}곳`:'✓',niAll.size?'niList()':'')+
+    '<div id="ni-list" class="items" style="display:none"></div>'+
+    row(old.some(t=>days(t.d)>=60)?'var(--red)':old.length?'#f39c12':'var(--sale)','30일 넘은 미수',
+      old.length?`${oldP.size}곳 · 미수 탭에서 보기 →`:'없음',old.length?man(old.reduce((s,t)=>s+t.g,0)):'✓',old.length?"tab('unpaid')":'');
+}
+
+// 이번 달 거래처별 매출 TOP 5 (카드매출 제외)
+function top5(ym){
+  const g={},nm={};sales().filter(t=>!t.card&&t.d.startsWith(ym)).forEach(t=>{const k=pk(t.p);nm[k]=nm[k]||short(t.p);g[k]=(g[k]||0)+t.s;});
+  const list=Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>[nm[k],v]),max=list[0]?list[0][1]:1;
+  $('top').innerHTML=list.map(([p,v])=>`<div style="padding:7px 0"><div style="display:flex;justify-content:space-between;font-size:14px">
+      <b>${esc(p)}</b><span style="font-variant-numeric:tabular-nums">${man(v)}</span></div>
+      <div class="bar"><i style="width:${Math.round(v/max*100)}%;background:var(--sale)"></i></div></div>`).join('')||'<div class="empty">이번 달 거래 없음</div>';
+}
+
+function chart(y,nowM){
+  const ms=[...Array(12)].map((_,i)=>({i,s:sales().filter(t=>t.d.startsWith(`${y}-${String(i+1).padStart(2,'0')}`)).reduce((a,t)=>a+t.s,0),p:PREV[i+1]||0}));
+  const W=340,H=170,L=4,R=4,T=18,B=18,pw=W-L-R,ph=H-T-B,cw=pw/12;
+  const max=Math.max(GOAL,...ms.map(m=>Math.max(m.s,m.p)))*1.15,yv=v=>T+ph-v/max*ph,xc=i=>L+(i+.5)*cw;
+  let g=`<line x1="${L}" x2="${W-R}" y1="${yv(GOAL)}" y2="${yv(GOAL)}" stroke="#f39c12" stroke-dasharray="4 4"/>`;
+  g+=`<polyline points="${ms.map(m=>`${xc(m.i)},${yv(m.p)}`).join(' ')}" fill="none" stroke="var(--gray)" stroke-width="1.5"/>`;
+  const cs=ms.slice(0,nowM);
+  g+=`<polyline points="${cs.map(m=>`${xc(m.i)},${yv(m.s)}`).join(' ')}" fill="none" stroke="var(--sale)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  cs.forEach(m=>{const cur=m.i===nowM-1;g+=`<circle cx="${xc(m.i)}" cy="${yv(m.s)}" r="${cur?4.5:3}" fill="${cur?'var(--acc)':'var(--sale)'}"/>`;
+    if(cur||m.s===Math.max(...cs.map(x=>x.s)))g+=`<text x="${xc(m.i)}" y="${yv(m.s)-8}" text-anchor="middle" style="font-weight:800;fill:${cur?'var(--acc)':'var(--saleT)'}">${Math.round(m.s/10000).toLocaleString()}</text>`;});
+  ms.forEach(m=>{g+=`<text x="${xc(m.i)}" y="${H-4}" text-anchor="middle" ${m.i===nowM-1?'style="fill:var(--acc);font-weight:700"':''}>${m.i+1}</text>`;});
+  // 달 칸을 누르면 그 달 매출 자세히 (2026-11-02)
+  cs.forEach(m=>{g+=`<rect x="${L+m.i*cw}" y="0" width="${cw}" height="${H}" fill="transparent" style="cursor:pointer" onclick="openMonth('${y}-${String(m.i+1).padStart(2,'0')}')"/>`;});
+  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%">${g}</svg>`;
+}
+
+function txRow(t){
+  const tag=t.t==='매입'?'<span class="pill pb">매입</span>':t.card?'<span class="pill ps">카드</span>':t.inv==='카드'?(t.paid?'<span class="pill ps">💳카드</span>':'<span class="pill pu">💳미수</span>'):(t.paid?'<span class="pill pp">입금</span>':'<span class="pill pu">미수</span>');
+  // 계산서 발행 여부 (11/16 사장님 요청): 발행일·홈택스 → 🧾발행, 현금(부가세 0) → 현금, 나머지 → 미발행
+  const inv=t.t!=='매출'||t.card||t.inv==='카드'?'':t.s>0&&!t.v?'<span class="pill pb">현금</span>'
+    :t.inv||t.ht?`<span class="pill pp">🧾${/^\d{4}-\d\d-\d\d/.test(t.inv)?t.inv.slice(5,10).replace('-','/'):'발행'}</span>`:'<span class="pill pu">🧾미발행</span>';
+  const it=t.it[0]?esc(t.it[0][0])+(t.it.length>1?` 외 ${t.it.length-1}`:''):'';
+  const pr=t.t==='매출'&&!t.card?`<button class="btn" style="padding:4px 7px" onclick="editTx(${t.id})">✏</button><button class="btn" style="padding:4px 7px" onclick="printTx(${t.id})">🖨</button><button class="btn" style="padding:4px 7px" onclick="mailTx(${t.id})">📧</button><button class="btn" style="padding:4px 7px" onclick="cardTx(${t.id})">💳</button>`:'';
+  // 글자 부분을 누르면 품목 전체 + 작업 메모 (v12)
+  return `<div class="row"><div class="m" onclick="noteTx(${t.id})"><div class="n">${esc(short(t.p))}${t.wn?' <span style="font-size:12px">📝</span>':''}</div><div class="d">${t.d.slice(5).replace('-','/')} · ${it}</div>${t.wn?`<div class="wn">${esc(t.wn)}</div>`:''}</div>
+    <div class="v">${won(t.s)}<div style="margin-top:3px">${tag}</div>${inv?`<div style="margin-top:3px">${inv}</div>`:''}</div>${pr}</div>`;
+}
+// ─── 💳 카드결제 표시 (v13, 2026-11-13): 카드로 받은 명세서 → 카드 + 입금됨 + 결제일. 페이히어 카드매출에서 같은 금액은 빠짐 ───
+async function cardTx(id){const t=TX.find(x=>x.id===id);if(!t)return;
+  const nm=`${short(t.p)} ${t.d.slice(5).replace('-','/')} · VAT포함 ${won(t.g)}`;
+  let on=true,date='';
+  if(t.inv==='카드'&&t.paid){if(!await ask(`${nm}\n💳 카드결제(${(t.ca||'').slice(5).replace('-','/')||'날짜 없음'}) 표시를 취소하고\n미수로 되돌릴까요?`))return;on=false;}
+  else{if(t.inv&&t.inv!=='카드')return toast('계산서 발행된 건이에요 ('+t.inv+')');
+    date=await ask(`${nm}\n💳 카드결제로 표시할까요? (입금됨)\n\n카드 결제한 날:`,t.ca||today());if(!date)return;}
+  google.script.run.withSuccessHandler(r=>{t.inv=r.inv;t.ca=r.cardAt;t.paid=on;render();toast(on?'💳 카드결제로 표시했어요':'카드 표시 취소했어요');})
+    .withFailureHandler(e=>toast('저장 실패: '+e.message)).mobileSetCard(t.id,on,date);}
+// ─── 작업 메모 (v12, 2026-10-29): 거래(명세서·계산서)마다 숫돌·RPM·요령 메모 ───
+let NOTE_ID=0;
+function noteTx(id){const t=TX.find(x=>x.id===id);if(!t)return;NOTE_ID=id;
+  $('n-title').textContent=`${short(t.p)} · ${t.d.slice(5).replace('-','/')} · 공급가 ${won(t.s)}`;
+  $('n-items').innerHTML=t.it.map(i=>`<div><span>${esc(i[0])}${i[1]?' '+esc(i[1]):''}</span><span>${i[2]}개 × ${won(i[3])}</span></div>`).join('');
+  noteAct(t);
+  // 빈 메모면 숫돌·RPM 글자를 미리 넣어 둠 (회색 안내 글씨는 쓰기 시작하면 사라져서, 11/11 사장님)
+  // v36: 창을 열자마자 자판이 뜨면 아래 버튼을 가려서 자동 포커스는 뺌 → 메모 칸을 누르면 그때 씀
+  const el=$('n-text');el.value=t.wn||NOTE_TPL;$('notebox').style.display='flex';}
+// v36 (11/18 사장님: 거래 누르면 나오는 창에 인쇄·저장·삭제 같은 버튼): 그 거래로 바로 할 일 버튼
+function noteAct(t){const sale=t.t==='매출'&&!t.card,id=t.id;
+  const st=t.inv==='카드'?(t.paid?'💳 카드결제'+(t.ca?' '+t.ca.slice(5).replace('-','/'):''):'💳 카드 미수'):t.paid?'✅ 입금됨':'⏳ 미수';
+  const iv=!sale?'':t.inv&&t.inv!=='카드'?` · 🧾 계산서 ${/^\d{4}-\d\d-\d\d/.test(t.inv)?t.inv.slice(5,10).replace('-','/'):t.inv}`:t.ht?' · 🧾 홈택스':t.s>0&&!t.v?' · 현금':' · 🧾 미발행';
+  $('n-sum').innerHTML=`공급가 ${won(t.s)} + 부가세 ${won(t.v)} = <b style="color:var(--acc)">${won(t.g)}원</b><br>${t.t==='매출'?st+iv:t.t}`;
+  const b=(ic,tx,fn,red)=>`<button class="btn" style="padding:10px 4px;font-size:14px${red?';color:var(--red)':''}" onclick="${fn}">${ic}<br>${tx}</button>`;
+  $('n-act').innerHTML=sale?[
+    b('🖨','PC 인쇄',`noteGo('printTx',${id})`),
+    b('✏','고치기',`noteGo('editTx',${id})`),
+    b('📧','메일',`noteGo('mailTx',${id})`),
+    t.inv==='카드'?b('💳','카드 취소',`noteGo('cardTx',${id})`):b(t.paid?'↩':'💰',t.paid?'미수로':'입금 처리',`paidTx(${id})`),
+    t.inv==='카드'||t.paid?'':b('💳','카드결제',`noteGo('cardTx',${id})`),
+    b('🗑','삭제',`delTx(${id},this)`,1)].join(''):'';
+  $('n-act').style.display=sale?'grid':'none';}
+function noteGo(fn,id){$('notebox').style.display='none';window[fn](id);}
+async function paidTx(id){const t=TX.find(x=>x.id===id);if(!t)return;const on=!t.paid;
+  if(!await ask(`${short(t.p)} ${t.d.slice(5).replace('-','/')} ${won(t.g)}원 (VAT 포함)\n${on?'입금 완료로':'미수로 되돌려'} 바꿀까요?`))return;
+  busy(true,'저장 중…');
+  google.script.run.withSuccessHandler(()=>{busy(false);t.paid=on;render();noteAct(t);toast(on?'입금 처리했어요':'미수로 되돌렸어요');})
+    .withFailureHandler(e=>{busy(false);toast('실패: '+e.message);}).mobileTogglePaid(id,on);}
+// 삭제: 두 번 눌러야 지움(첫 번째는 '정말?'), 지운 거래는 PC ERP 휴지통에서 되살릴 수 있음
+function delTx(id,btn){const t=TX.find(x=>x.id===id);if(!t)return;
+  if(t.inv&&t.inv!=='카드'||t.ht)return toast('계산서 발행된 거래는 PC에서 지워 주세요');
+  if(btn.dataset.ok!=='1'){btn.dataset.ok='1';btn.innerHTML='🗑<br>정말 삭제?';btn.style.background='var(--red)';btn.style.color='#fff';
+    setTimeout(()=>{if(btn.isConnected&&btn.dataset.ok==='1'){btn.dataset.ok='';btn.innerHTML='🗑<br>삭제';btn.style.background='';btn.style.color='var(--red)';}},3000);return;}
+  busy(true,'지우는 중…');
+  google.script.run.withSuccessHandler(()=>{busy(false);TX=TX.filter(x=>x.id!==id);$('notebox').style.display='none';render();
+      toast('삭제했어요 (PC ERP 휴지통에서 되살릴 수 있어요)');})
+    .withFailureHandler(e=>{busy(false);toast('삭제 실패: '+e.message);}).mobileDeleteTx(id);}
+const NOTE_TPL='숫돌: \nRPM: \n이송·절입: \n요령·주의: ';
+// 값 안 적은 줄('RPM:'만 있는 줄)은 빼고 저장
+function noteClean(s){return s.split('\n').filter(l=>!/^\s*(숫돌|RPM|이송·절입|요령·주의)\s*:\s*$/.test(l)).join('\n').trim();}
+async function noteSave(){const t=TX.find(x=>x.id===NOTE_ID);if(!t)return;const v=noteClean($('n-text').value);
+  if(!v&&t.wn&&!await ask('메모를 지울까요?'))return;
+  google.script.run.withSuccessHandler(()=>{t.wn=v;$('notebox').style.display='none';render();toast(v?'메모 저장했어요':'메모 지웠어요');})
+    .withFailureHandler(e=>toast('저장 실패: '+e.message)).mobileSetNote(t.id,v);}
+
+// 미수: 업체 → 달별 합계 한 줄 (월말 합산 계산서 → 다음 달~60일 결제 방식이라 달 단위로 입금 확인)
+// 경과일은 그 달 말일부터 셈: 30일↑ 주황, 60일↑ 빨강(결제 기한 넘김)
+const monthEnd=ym=>{const [y,m]=ym.split('-').map(Number);return new Date(y,m,0);};
+const sinceEnd=ym=>Math.max(0,Math.floor((new Date(today())-monthEnd(ym))/86400000));
+let UNPAID=[];const UOPEN=new Set();  // 펼친 업체 (입금 처리 후 다시 그려도 펼친 채로)
+function uTog(i){const p=UNPAID[i].p;UOPEN.has(p)?UOPEN.delete(p):UOPEN.add(p);$('u'+i).style.display=UOPEN.has(p)?'block':'none';}
+function renderUnpaid(){
+  const g={};unpaidTx().forEach(t=>{const k=pk(t.p),ym=t.d.slice(0,7);g[k]=g[k]||{p:short(t.p),sum:0,months:{}};g[k].sum+=t.g;(g[k].months[ym]=g[k].months[ym]||[]).push(t);});
+  UNPAID=Object.values(g).map(x=>({...x,ms:Object.keys(x.months).sort()})).sort((a,b)=>a.ms[0].localeCompare(b.ms[0]));
+  $('u-sum').textContent=`${UNPAID.length}곳 · ${man(UNPAID.reduce((s,x)=>s+x.sum,0))}`;
+  const col=n=>n>=60?'var(--red)':n>=30?'#d97706':'var(--muted)';
+  const q=($('uq')||{}).value||'';  // 업체 검색 (초성 가능)
+  $('unpaid').innerHTML=UNPAID.map((x,i)=>{if(q&&!hasText(x.p,q))return '';const n=sinceEnd(x.ms[0]);return `<div class="row" onclick="uTog(${i})">
+      <div class="m"><div class="n">${esc(x.p)}</div><div class="d" style="color:${col(n)}">${x.ms.map(m=>Number(m.slice(5))+'월').join('·')}분${n?` · ${Number(x.ms[0].slice(5))}월 말일부터 ${n}일`:''}</div></div>
+      <div class="v">${won(x.sum)}</div></div>
+    <div id="u${i}" style="display:${UOPEN.has(x.p)?'block':'none'}" class="items">${x.ms.map(m=>{const l=x.months[m],k=sinceEnd(m);
+      // 달 줄: 그 달 전체 입금 (보통 월합계를 다음 달·60일에 한 번에 받음) / 아래 건별 줄: 한 건씩 입금 (2026-11-02)
+      return `<div style="align-items:center;margin-top:6px;font-weight:600">
+      <span style="color:${col(k)}">${m.replace('-','년 ')}월 · ${l.length}건</span>
+      <span>${won(l.reduce((s,t)=>s+t.g,0))} <button class="btn" style="background:var(--sale);color:#fff;border:none" onclick="event.stopPropagation();payMonth(${i},'${m}')">${+m.slice(5)}월 전체 입금</button></span></div>
+      ${l.length>1?l.map(t=>`<div style="align-items:center;padding-left:10px;font-size:12px">
+        <span>${t.d.slice(5).replace('-','/')} ${esc(t.it[0]?t.it[0][0]+(t.it.length>1?' 외':''):'')}</span>
+        <span>${won(t.g)} <button class="btn" style="padding:3px 8px;font-size:12px" onclick="event.stopPropagation();payOne(${t.id})">입금</button></span></div>`).join(''):''}`;}).join('')}</div>`;}).join('')||`<div class="empty">${q?'찾는 업체의 미수가 없어요':'미수 없음 👍'}</div>`;
+}
+
+// 한 건만 입금 처리
+async function payOne(id){
+  const t=TX.find(x=>x.id===id);if(!t)return;
+  if(!await ask(`${short(t.p)} ${t.d.slice(5).replace('-','/')} ${won(t.g)}원 (VAT 포함)\n입금 완료로 바꿀까요?`))return;
+  google.script.run.withSuccessHandler(()=>{t.paid=true;render();toast('입금 처리했어요');})
+    .withFailureHandler(e=>toast('실패: '+e.message)).mobileSetPaidMany([id]);
+}
+
+// 그 업체의 그 달 미수를 한꺼번에 입금 처리
+async function payMonth(i,m){
+  const x=UNPAID[i];if(!x)return;const l=x.months[m];const sum=l.reduce((s,t)=>s+t.g,0);
+  if(!await ask(`${x.p} ${m.replace('-','년 ')}월분 ${l.length}건\n합계 ${won(sum)}원 (VAT 포함)\n입금 완료로 바꿀까요?`))return;
+  google.script.run.withSuccessHandler(()=>{l.forEach(t=>t.paid=true);render();toast(`${l.length}건 입금 처리했어요`);})
+    .withFailureHandler(e=>toast('실패: '+e.message)).mobileSetPaidMany(l.map(t=>t.id));
+}
+
+// ─── 달별 매출 (v16, 2026-11-02): 요약의 'N월 매출'·그래프 달을 누르면 그 달 합계 + 거래처별 (◀▶·아래 목록으로 다른 달) ───
+let MV='';const MOPEN=new Set();
+function openMonth(ym){MV=ym;MOPEN.clear();tab('month');renderMonth();}
+function mShift(n){const [y,m]=MV.split('-').map(Number),d=new Date(y,m-1+n,1);MV=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;MOPEN.clear();renderMonth();window.scrollTo(0,0);}
+function mTog(k){MOPEN.has(k)?MOPEN.delete(k):MOPEN.add(k);renderMonth();}
+function renderMonth(){
+  if(!MV)return;
+  const cur=today().slice(0,7),[y,m]=MV.split('-').map(Number);
+  const l=TX.filter(t=>t.d.startsWith(MV)),s=l.filter(t=>t.t==='매출'),b=l.filter(t=>t.t==='매입');
+  const sum=(a,k='s')=>a.reduce((x,t)=>x+t[k],0);
+  const ss=sum(s),card=sum(s.filter(t=>t.card)),un=sum(s.filter(t=>!t.card&&!t.paid),'g'),bs=sum(b);
+  const prev=y===2026?PREV[m]:0,dp=prev?Math.round((ss-prev)/prev*100):null,pct=Math.round(ss/GOAL*100);
+  const g={};s.forEach(t=>{const k=pk(t.p);(g[k]=g[k]||{p:t.card?'카드매출':short(t.p),k,l:[],s:0,un:0}).l.push(t);g[k].s+=t.s;if(!t.card&&!t.paid)g[k].un+=t.g;});
+  const ps=Object.values(g).sort((a,b)=>b.s-a.s),max=ps[0]?ps[0].s:1;
+  const months={};sales().forEach(t=>{const k=t.d.slice(0,7);months[k]=(months[k]||0)+t.s;});
+  $('mview').innerHTML=`
+    <div class="card" style="text-align:center">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <button class="btn" style="padding:8px 14px;font-size:16px" onclick="mShift(-1)">◀</button>
+        <b style="font-size:18px">${y}년 ${m}월</b>
+        <button class="btn" style="padding:8px 14px;font-size:16px;${MV>=cur?'visibility:hidden':''}" onclick="mShift(1)">▶</button></div>
+      <div style="font-size:12px;color:var(--sub);margin-top:12px">매출 <span class="u">공급가</span> · ${s.length}건</div>
+      <div style="font-size:28px;font-weight:800;color:var(--acc);margin:2px 0">${won(ss)}원</div>
+      <div style="font-size:12px;color:var(--muted)">목표 ${man(GOAL)}의 <b>${pct}%</b>${dp===null?'':` · 작년 ${m}월 ${man(prev)} <b style="color:${dp>=0?'var(--sale)':'var(--red)'}">${dp>=0?'▲':'▼'}${Math.abs(dp)}%</b>`}</div>
+      <div class="bar"><i style="width:${Math.min(100,pct)}%"></i></div>
+      <div style="display:flex;justify-content:space-around;margin-top:12px;font-size:12px;color:var(--sub)">
+        <div>카드매출 <span class="u">공급가</span><br><b style="font-size:14px;color:var(--text)">${man(card)}</b>${card?`<br><span class="u" style="margin:0">결제 ${man(sum(s.filter(t=>t.card),'g'))} (VAT포함)</span>`:''}</div>
+        <div>미수 <span class="u">VAT포함</span><br><b style="font-size:14px;color:${un?'var(--red)':'var(--text)'}">${un?won(un):'없음'}</b><br><span class="u" style="margin:0">받을 돈</span></div>
+        <div>매입 <span class="u">공급가</span><br><b style="font-size:14px;color:var(--buy)">${man(bs)}</b>${bs?`<br><span class="u" style="margin:0">VAT포함 ${man(sum(b,'g'))}</span>`:''}</div></div></div>
+    <div class="card"><h3><span>거래처별<span class="u">공급가 · 누르면 거래</span></span> <small>${ps.length}곳</small></h3>
+      ${ps.map(x=>`<div class="row" onclick="mTog('${x.k}')" style="display:block">
+        <div style="display:flex;justify-content:space-between;font-size:15px"><b>${esc(x.p)}</b><span style="font-weight:700;font-variant-numeric:tabular-nums">${won(x.s)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:2px"><span>${x.l.length}건</span>${x.un?`<span style="color:var(--red)">미수 ${won(x.un)}</span>`:x.p==='카드매출'?'':'<span style="color:var(--saleT)">입금 완료</span>'}</div>
+        <div class="bar"><i style="width:${Math.round(x.s/max*100)}%;background:var(--sale)"></i></div></div>
+        ${MOPEN.has(x.k)?`<div style="padding:0 0 6px 8px">${x.l.map(t=>txRow(t)).join('')}</div>`:''}`).join('')||'<div class="empty">이 달 매출 없음</div>'}</div>
+    <div class="card"><h3><span>다른 달 보기<span class="u">공급가</span></span></h3>
+      ${Object.keys(months).sort().reverse().map(k=>`<div class="row" onclick="openMonth('${k}')" style="padding:9px 2px;${k===MV?'background:var(--line);border-radius:8px':''}">
+        <div class="m"><div class="n" style="font-weight:${k===MV?800:600}">${k.slice(0,4)}년 ${+k.slice(5)}월</div></div><div class="v">${won(months[k])}</div></div>`).join('')}</div>`;
+}
+
+// 검색 추천 (v16, 2026-11-02): 비워 두면 최근 거래처 버튼, 글자를 넣으면 맞는 거래처·품목 버튼 → 누르면 바로 검색
+function qSug(){
+  const q=$('q').value.trim(),box=$('q-sug');if(!box)return;
+  const chip=(v,label)=>`<button class="btn" style="margin:0 6px 6px 0;padding:7px 11px;font-size:14px" onpointerdown="event.preventDefault();qPick(this.dataset.v)" data-v="${esc(v)}">${label}</button>`;
+  if(!q){box.innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:4px">최근 거래처</div>'+partnerNames().slice(0,12).map(n=>chip(n,esc(short(n)))).join('');return;}
+  const qk=pk(q),ps=partnerNames().filter(n=>pk(n)!==qk&&(hasText(short(n),q)||hasText(pk(n),qk))).slice(0,8);  // short: '주식회사'의 ㅎㅅ에 안 걸리게
+  const seen=new Set(),its=[];TX.forEach(t=>t.it.forEach(i=>{const n=String(i[0]||'').trim();if(n&&!seen.has(n)&&n!==q&&hasText(n,q)&&its.length<5){seen.add(n);its.push(n);}}));
+  box.innerHTML=ps.map(n=>chip(n,'🏢 '+esc(short(n)))).join('')+its.map(n=>chip(n,'🔧 '+esc(n))).join('');
+}
+function qPick(v){$('q').value=v;FM='';find();qSug();$('q').blur();}
+
+// 검색: 맨 위에 총합계 + 달별 합계 (달을 누르면 그 달만 보기) — 2026-10-27 사장님 요청
+let FM='';  // 고른 달 ('' = 전체)
+function find(){
+  const q=$('q').value.trim();
+  if(!q){FM='';$('found').innerHTML='<div class="empty">거래처나 품목을 입력하세요</div>';return;}
+  const all=TX.filter(t=>hasText(t.p,q)||t.it.some(i=>hasText(i[0],q)||hasText(i[1],q))||(t.wn&&String(t.wn).toLowerCase().includes(q.toLowerCase())));
+  if(!all.length){$('found').innerHTML='<div class="empty">찾는 거래가 없어요</div>';return;}
+  const S=l=>{const s=l.filter(t=>t.t==='매출'),b=l.filter(t=>t.t==='매입');
+    return {n:l.length,ss:s.reduce((a,t)=>a+t.s,0),sg:s.reduce((a,t)=>a+t.g,0),un:s.filter(t=>!t.card&&!t.paid).reduce((a,t)=>a+t.g,0),bs:b.reduce((a,t)=>a+t.s,0)};};
+  const months={};all.forEach(t=>(months[t.d.slice(0,7)]=months[t.d.slice(0,7)]||[]).push(t));
+  if(FM&&!months[FM])FM='';
+  const list=FM?months[FM]:all, tot=S(list);
+  const mrows=Object.keys(months).sort().reverse().map(m=>{const x=S(months[m]);
+    return `<div class="row" onclick="FM=FM==='${m}'?'':'${m}';find()" style="padding:8px 2px;${FM===m?'background:var(--line);border-radius:8px':''}">
+      <div class="m"><div class="n" style="font-weight:${FM===m?800:600}">${m.slice(0,4)}년 ${+m.slice(5)}월</div><div class="d">${x.n}건${x.un?` · 미수 ${won(x.un)}`:''}</div></div>
+      <div class="v">${x.ss?won(x.ss):''}${x.bs?`<div style="font-size:12px;color:var(--buy)">매입 ${won(x.bs)}</div>`:''}</div></div>`;}).join('');
+  $('found').innerHTML=`
+    <div style="background:var(--bg);border-radius:12px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--sub);font-weight:600">${FM?`${FM.slice(0,4)}년 ${+FM.slice(5)}월`:'전체'} 합계 · ${tot.n}건 <span class="u">공급가</span>${FM?` <a href="#" onclick="event.preventDefault();FM='';find()" style="color:var(--acc);margin-left:6px">전체 보기</a>`:''}</div>
+      ${tot.ss?`<div style="font-size:22px;font-weight:800;color:var(--acc);margin:4px 0 2px">${won(tot.ss)}원</div>
+      <div style="font-size:12px;color:var(--muted)">VAT 포함 ${won(tot.sg)}원${tot.un?` · <b style="color:var(--red)">미수 ${won(tot.un)}</b>`:''}</div>`:''}
+      ${tot.bs?`<div style="font-size:14px;font-weight:700;color:var(--buy);margin-top:4px">매입 ${won(tot.bs)}원</div>`:''}
+    </div>
+    <details ${FM?'open':''} style="margin-bottom:8px"><summary style="font-size:13px;font-weight:700;padding:4px 2px;cursor:pointer">📅 달별 합계 (${Object.keys(months).length}개월) · 누르면 그 달만</summary>${mrows}</details>
+    ${list.slice(0,40).map(t=>txRow(t)+`<div class="items">${t.it.map(i=>`<div><span>${esc(i[0])} ${esc(i[1])}</span><span>${i[2]}개 × ${won(i[3])}</span></div>`).join('')}</div>`).join('')}
+    ${list.length>40?`<div class="empty" style="padding:10px 0">최근 40건만 보여요 (합계는 ${list.length}건 전체)</div>`:''}`;
+}
+// v38 (11/20 인우테크 '수정 저장'이 안 눌림): 자판이 열린 채 저장 버튼을 누르면 자판이 닫히며 화면이 움직여 click이 빠지던 일
+// → 손 뗄 때(touchend) 손가락이 거의 안 움직였으면 바로 실행 (스크롤은 무시)
+function tapFix(el,fn){let x=0,y=0;el.addEventListener('touchstart',e=>{const t=e.touches[0];x=t.clientX;y=t.clientY;},{passive:true});
+  el.addEventListener('touchend',e=>{const t=e.changedTouches[0];if(Math.abs(t.clientX-x)>12||Math.abs(t.clientY-y)>12)return;
+    e.preventDefault();document.querySelectorAll('.isug').forEach(b=>b.innerHTML='');fn();});}
+tapFix($('a-s1'),()=>saveTx(false));tapFix($('a-s2'),()=>saveTx(true));
+load();
+</script>
+<style>
+#bell{position:relative;border:1px solid var(--line);background:none;color:var(--sub);border-radius:8px;padding:5px 9px;font-size:15px}
+#bell i{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:5px;background:var(--red);display:none}
+#nbox{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;flex-direction:column}
+#nbox .hd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+#nlist{flex:1;overflow:auto;padding:10px 14px}
+.nt{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;white-space:pre-wrap;word-break:break-all;font-size:14px;line-height:1.45}
+.nt small{display:block;color:var(--muted);font-size:11px;margin-bottom:3px}
+.nt.new{border-color:var(--acc)}
+#non{width:100%;padding:12px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:inherit;margin-bottom:10px}
+</style>
+<div id="nbox"><div class="hd"><b>🔔 알림</b><button id="nx" style="border:1px solid var(--line);background:none;color:var(--sub);border-radius:8px;padding:6px 12px;font:inherit">닫기</button></div>
+<div id="nlist"></div></div>
+<script>
+(function(){
+var VAPID="BIZStxdGzShxR9txSLAMrS4-cl0SE5KCBJNKTwlHNWTBzXSBnB1Mz071JOQOWLTOflg_owZfeFq_Ah2sRjfeMxE", NOTES=[], SEEN=0;
+try{SEEN=Number(localStorage.getItem('hg_seen')||0)}catch(e){}
+function b64(s){s=(s+'===='.slice(s.length%4)).replace(/-/g,'+').replace(/_/g,'/');var r=atob(s),a=new Uint8Array(r.length);for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
+function t2(ms){var d=new Date(ms);return (d.getMonth()+1)+'/'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+function dot(){var b=document.querySelector('#bell i');if(b)b.style.display=NOTES.length&&NOTES[0].at>SEEN?'block':'none'}
+function canPush(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+function paint(){
+  var on=canPush()&&Notification.permission==='granted';
+  var h=on?'':'<button id="non">🔔 이 휴대폰에서 알림 받기</button>';
+  h+=NOTES.length?NOTES.map(function(n){return '<div class="nt'+(n.at>SEEN?' new':'')+'"><small>'+t2(n.at)+'</small>'+esc(n.t)+'</div>'}).join(''):'<div class="nt">아직 알림이 없어요</div>';
+  document.getElementById('nlist').innerHTML=h;
+  var b=document.getElementById('non');if(b)b.onclick=pushOn;
+}
+function load(cb){google.script.run.withSuccessHandler(function(l){NOTES=l||[];dot();cb&&cb()}).withFailureHandler(function(){}).appNotices()}
+function open_(){document.getElementById('nbox').style.display='flex';paint();load(function(){paint();seen()})}
+function seen(){if(NOTES.length){SEEN=NOTES[0].at;try{localStorage.setItem('hg_seen',SEEN)}catch(e){}}dot()}
+function msg(t){if(window.toast)toast(t);else alert(t)}
+function sub(ask){
+  if(!canPush())return ask&&msg('이 브라우저는 알림이 안 돼요 (크롬에서 홈 화면에 추가해 주세요)');
+  return navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription().then(function(s){
+    return s||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(VAPID)})})})
+  .then(function(s){google.script.run.withSuccessHandler(function(){if(ask){msg('🔔 알림 켰어요');paint()}})
+    .withFailureHandler(function(e){ask&&msg('알림 등록 실패: '+e.message)}).appPushSub(JSON.parse(JSON.stringify(s)))})
+  .catch(function(e){ask&&msg('알림 켜기 실패: '+e.message)});
+}
+function pushOn(){
+  if(!canPush())return sub(true);
+  Notification.requestPermission().then(function(p){if(p!=='granted')return msg('알림이 막혀 있어요 → 휴대폰 설정 > 앱 > 크롬 > 알림에서 허용해 주세요');sub(true)});
+}
+addEventListener('load',function(){
+  document.getElementById('bell').onclick=open_;
+  document.getElementById('nx').onclick=function(){document.getElementById('nbox').style.display='none';seen()};
+  load();
+  if(canPush()&&Notification.permission==='granted')sub(false);
+  if(/[?&]bell=1/.test(location.search)){history.replaceState(null,'',location.pathname);open_();}
+  navigator.serviceWorker&&navigator.serviceWorker.addEventListener('message',function(e){if(e.data==='bell')open_()});
+});
+})();
+</script>
+</body></html>
