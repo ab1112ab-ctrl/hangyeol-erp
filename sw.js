@@ -1,6 +1,6 @@
 // 화면 파일은 휴대폰에 저장해 두고 바로 띄움 + 뒤에서 새 버전 받아 둠 (다음에 열 때 반영)
 const C = 'hg-erp';
-self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-mask-192.png', 'icon-mask-512.png']))); });
+self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-mask-192.png', 'icon-mask-512.png', 'badge-96.png']))); });
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
@@ -14,7 +14,7 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data.json(); } catch (x) { d = { title: '한결연마', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || '한결연마', { body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', data: { url: './?bell=1' } }));
+  e.waitUntil(self.registration.showNotification(d.title || '한결연마', { body: d.body || '', icon: 'icon-192.png', badge: 'badge-96.png', data: { url: './?bell=1' } }));
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
