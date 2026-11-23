@@ -672,10 +672,10 @@ function renderUnpaid(){
       // 달 줄: 그 달 전체 입금 (보통 월합계를 다음 달·60일에 한 번에 받음) / 아래 건별 줄: 한 건씩 입금 (2026-11-02)
       return `<div style="align-items:center;margin-top:6px;font-weight:600">
       <span style="color:${col(k)}">${m.replace('-','년 ')}월 · ${l.length}건</span>
-      <span>${won(l.reduce((s,t)=>s+t.g,0))} <button class="btn" style="background:var(--sale);color:#fff;border:none" onclick="event.stopPropagation();payMonth(${i},'${m}')">${+m.slice(5)}월 전체 입금</button></span></div>
+      <span>${won(l.reduce((s,t)=>s+t.g,0))} <button class="btn" style="background:var(--sale);color:#fff;border:none" onclick="event.stopPropagation();payMonth(${i},'${m}')">${+m.slice(5)}월 전체 입금</button> <button class="btn" style="padding:6px 8px" onclick="event.stopPropagation();cardMonth(${i},'${m}')">💳 카드</button></span></div>
       ${l.length>1?l.map(t=>`<div style="align-items:center;padding-left:10px;font-size:12px">
         <span>${t.d.slice(5).replace('-','/')} ${esc(t.it[0]?t.it[0][0]+(t.it.length>1?' 외':''):'')}</span>
-        <span>${won(t.g)} <button class="btn" style="padding:3px 8px;font-size:12px" onclick="event.stopPropagation();payOne(${t.id})">입금</button></span></div>`).join(''):''}`;}).join('')}</div>`;}).join('')||`<div class="empty">${q?'찾는 업체의 미수가 없어요':'미수 없음 👍'}</div>`;
+        <span>${won(t.g)} <button class="btn" style="padding:3px 8px;font-size:12px" onclick="event.stopPropagation();payOne(${t.id})">입금</button> <button class="btn" style="padding:3px 6px;font-size:12px" onclick="event.stopPropagation();cardTx(${t.id})">💳</button></span></div>`).join(''):''}`;}).join('')}</div>`;}).join('')||`<div class="empty">${q?'찾는 업체의 미수가 없어요':'미수 없음 👍'}</div>`;
 }
 
 // 한 건만 입금 처리
@@ -684,6 +684,19 @@ async function payOne(id){
   if(!await ask(`${short(t.p)} ${t.d.slice(5).replace('-','/')} ${won(t.g)}원 (VAT 포함)\n입금 완료로 바꿀까요?`))return;
   google.script.run.withSuccessHandler(()=>{t.paid=true;render();toast('입금 처리했어요');})
     .withFailureHandler(e=>toast('실패: '+e.message)).mobileSetPaidMany([id]);
+}
+
+// 💳 그 업체의 그 달 미수를 한꺼번에 카드결제로 (11/23 사장님: 미수 탭에서도 카드결제). 계산서 발행된 건은 뺌
+async function cardMonth(i,m){
+  const x=UNPAID[i];if(!x)return;const l=x.months[m].filter(t=>!t.inv||t.inv==='카드');
+  if(!l.length)return toast('계산서 발행된 건이라 카드로 못 바꿔요');
+  const sum=l.reduce((s,t)=>s+t.g,0),skip=x.months[m].length-l.length;
+  const date=await ask(`${x.p} ${m.replace('-','년 ')}월분 ${l.length}건\n합계 ${won(sum)}원 (VAT 포함)${skip?`\n(계산서 발행된 ${skip}건은 빼요)`:''}\n💳 카드결제로 표시할까요? (입금됨)\n\n카드 결제한 날:`,today());
+  if(!date)return;busy(true,'저장 중…');
+  const one=t=>new Promise((ok,no)=>google.script.run.withSuccessHandler(r=>{t.inv=r.inv;t.ca=r.cardAt;t.paid=true;ok();}).withFailureHandler(no).mobileSetCard(t.id,true,date));
+  try{for(const t of l)await one(t);toast(`💳 ${l.length}건 카드결제로 표시했어요`);}
+  catch(e){toast('저장 실패: '+e.message);}
+  busy(false);render();
 }
 
 // 그 업체의 그 달 미수를 한꺼번에 입금 처리
