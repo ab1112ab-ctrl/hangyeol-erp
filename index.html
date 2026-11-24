@@ -326,7 +326,7 @@ function itemCands(){const p=pk($('a-p').value.trim()),key=[p,TX.length];
   const v=itemCands0(p);_icK={tx:TX,k:key.join('|'),v};return v;}
 function itemCands0(p){const a=new Map(),b=new Map();
   sales().filter(t=>!t.card).forEach(t=>{const m=p&&pk(t.p)===p?a:b;t.it.forEach(i=>{const n=String(i[0]||'').trim(),s=String(i[1]||'').trim(),k=n+'|'+s;
-    if(n&&!m.has(k))m.set(k,{n,s,u:Number(i[3])||0});});});
+    if(n&&!m.has(k))m.set(k,{n,s,u:Number(i[3])||Math.round((Number(i[4])||0)/(Number(i[2])||1))||0});});});  // 홈택스 거래(단가 0) → 공급가÷수량 (11/24 필리스코리아)
   return [...a.values()].concat([...b].filter(([k])=>!a.has(k)).map(([,x])=>({n:x.n,s:x.s,u:0})));}
 function sugI(inp){const q=inp.value.trim(),box=inp.parentNode.querySelector('.isug'),p=pk($('a-p').value.trim());
   const c=itemCands(),hit=(q?c.filter(x=>(x.n!==q||x.s)&&hasText(x.n+' '+x.s,q)):c.filter(x=>x.u&&p)).slice(0,10);
